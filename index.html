@@ -11,30 +11,42 @@
     input,select,button{width:100%;padding:10px;margin-top:6px;font-size:14px;border-radius:6px;border:1px solid #dde6f4}
     .actions{display:flex;gap:10px;margin-top:12px}
     #output{margin-top:14px;padding:10px;background:#fbfdff;border-radius:8px;border:1px solid #e6f0ff}
-    #debug{margin-top:10px;color:#c33;font-size:13px}
+    #debug{margin-top:10px;color:#c33;font-size:13px;min-height:18px}
     .small{font-size:13px;color:#555}
     table{width:100%;border-collapse:collapse;margin-top:12px}
     th,td{border:1px solid #ddd;padding:6px;text-align:right;font-size:13px}
     th{background:#f7fafc;color:#111;font-weight:700;text-align:center}
-    #barCanvas{width:100%;height:240px;margin-top:12px;background:white;border-radius:6px}
+    canvas{display:block;width:100%;height:260px;margin-top:12px;border-radius:6px;background:white}
     .summary{margin-top:12px;font-weight:700}
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    @media (max-width:700px){ .controls{ grid-template-columns: 1fr } .actions{flex-direction:column} }
   </style>
 </head>
 <body>
   <div class="card">
     <h2>HOME LOAN MAX SAVING CALCULATOR</h2>
 
-    <label>Loan amount (₹)</label>
-    <input id="loan" type="number" value="100000" />
+    <div class="controls">
+      <div>
+        <label>Loan amount (₹)</label>
+        <input id="loan" type="number" value="100000" />
+      </div>
+      <div>
+        <label>Interest rate (% p.a.)</label>
+        <input id="rate" type="number" step="0.01" value="7.7" />
+      </div>
+    </div>
 
-    <label>Interest rate (% p.a.)</label>
-    <input id="rate" type="number" step="0.01" value="7.7" />
-
-    <label>Tenure (months)</label>
-    <input id="months" type="number" value="12" />
-
-    <label>Lump deposit at Day 1 (₹)</label>
-    <input id="depositAmt" type="number" value="10000" />
+    <div class="controls">
+      <div>
+        <label>Tenure (months)</label>
+        <input id="months" type="number" value="12" />
+      </div>
+      <div>
+        <label>Lump deposit at Day 1 (₹)</label>
+        <input id="depositAmt" type="number" value="10000" />
+      </div>
+    </div>
 
     <div class="actions">
       <button id="calcBtn">Calculate</button>
@@ -44,35 +56,42 @@
     <div id="output" class="small">Results will appear here after you click <b>Calculate</b>.</div>
     <div id="debug" aria-live="polite"></div>
 
-    <!-- table that shows the exact CSV/download data -->
     <div id="downloadDataContainer">
       <div style="margin-top:14px;font-weight:700">Downloaded data preview (exact CSV rows):</div>
       <div id="downloadTableWrap"></div>
     </div>
 
-    <!-- bar chart showing interest comparison -->
     <div class="summary" id="interestSavedBox" style="display:none"></div>
-    <canvas id="barCanvas"></canvas>
+    <canvas id="barCanvas" aria-label="Interest comparison bar chart"></canvas>
   </div>
 
 <script>
 (function(){
+  // -------------------------
+  // Helpers
+  // -------------------------
   function toNum(v){ v = Number(v); return isNaN(v)?0:v; }
   function fmtCurrency(v){ return '₹'+Number(v||0).toLocaleString('en-IN',{minimumFractionDigits:2, maximumFractionDigits:2}); }
   function fmtNumber2(v){ return Number(v).toFixed(2); }
 
+  // -------------------------
+  // EMI calculation
+  // -------------------------
   function calcEmi(P, annualRate, n){
     let r = annualRate/12/100;
     if(r===0) return P/n;
     return P * r * Math.pow(1+r,n) / (Math.pow(1+r,n)-1);
   }
 
+  // -------------------------
+  // Build amortization schedule (deposit applied at start of month 1)
+  // -------------------------
   function generateSchedule(P,R,N,deposit){
     const emi = calcEmi(P,R,N);
     let outstanding = Math.max(0, P - (deposit||0));
     const monthlyRate = R/12/100;
     const schedule = [];
-    for(let m=1; m<=N && outstanding>0.0001; m++){
+    for(let m=1; m<=N && outstanding>0.0000001; m++){
       const initial = outstanding;
       const interest = initial * monthlyRate;
       let principalPaid = emi - interest;
@@ -91,14 +110,53 @@
     return schedule;
   }
 
-  // Render HTML table that exactly mirrors CSV rows (rounded to 2 decimals)
+  // -------------------------
+  // Excel RATE-style solver (bisection) - monthly rate r such that PV = PMT * (1-(1+r)^-n)/r
+  // -------------------------
+  function solveRateByBisection(nper, pmt, pv){
+    // If pmt*nper == pv then r -> 0
+    if(Math.abs(pmt * nper - pv) < 1e-9) return 0;
+    function f(r){
+      if(Math.abs(r) < 1e-12){
+        return pmt * nper - pv;
+      } else {
+        return pmt * (1 - Math.pow(1 + r, -nper)) / r - pv;
+      }
+    }
+    var low = -0.999999, high = 1.0;
+    var fLow = f(low), fHigh = f(high);
+    if(isNaN(fLow) || isNaN(fHigh)) return NaN;
+    if(fLow * fHigh > 0){
+      var expansions = 0;
+      while(fLow * fHigh > 0 && expansions < 80){
+        high *= 2;
+        fHigh = f(high);
+        expansions++;
+      }
+      if(fLow * fHigh > 0) return NaN;
+    }
+    for(var i=0;i<300;i++){
+      var mid = (low + high) / 2;
+      var fMid = f(mid);
+      if(Math.abs(fMid) < 1e-12) return mid;
+      if(fLow * fMid <= 0){
+        high = mid; fHigh = fMid;
+      } else {
+        low = mid; fLow = fMid;
+      }
+    }
+    return (low + high) / 2;
+  }
+
+  // -------------------------
+  // Render download table (HTML preview)
+  // -------------------------
   function renderDownloadTable(noS, wiS){
+    var wrap = document.getElementById('downloadTableWrap');
+    if(!wrap) return;
     const maxLen = Math.max(noS.length, wiS.length);
-    const wrap = document.getElementById('downloadTableWrap');
     let html = '<table><thead>';
-    // first header row: visually show No Deposit / With Deposit above blocks
     html += '<tr><th colspan="7" style="text-align:center">No Deposit</th><th colspan="6" style="text-align:center">With Deposit</th></tr>';
-    // second header
     html += '<tr>';
     const headers = ['Month','Loan','Interest','EMI','Principal','Deposit','Outstanding','Loan','Interest','EMI','Principal','Deposit','Outstanding'];
     headers.forEach(h=> html += '<th>'+h+'</th>');
@@ -127,30 +185,33 @@
     wrap.innerHTML = html;
   }
 
-  // Draw a simple bar chart (two bars) showing interest amounts
+  // -------------------------
+  // Draw bar chart (internal canvas)
+  // -------------------------
   function drawBarChart(interestNo, interestWith){
-    const canvas = document.getElementById('barCanvas');
-    const ctx = canvas.getContext('2d');
-    const w = canvas.clientWidth || 900;
-    const h = canvas.clientHeight || 240;
-    canvas.width = Math.floor(w * devicePixelRatio);
-    canvas.height = Math.floor(h * devicePixelRatio);
-    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    var canvas = document.getElementById('barCanvas');
+    if(!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var w = canvas.clientWidth || 900;
+    var h = canvas.clientHeight || 260;
+    canvas.width = Math.floor(w * (window.devicePixelRatio || 1));
+    canvas.height = Math.floor(h * (window.devicePixelRatio || 1));
+    ctx.setTransform(window.devicePixelRatio || 1,0,0,window.devicePixelRatio || 1,0,0);
     ctx.clearRect(0,0,w,h);
 
     const values = [ interestNo, interestWith ];
     const labels = ['No Deposit','With Deposit'];
     const maxVal = Math.max(...values,1);
-    const barWidth = Math.min(120, (w-100)/3);
+    const barWidth = Math.min(140, (w-120)/3);
 
     // axes
     ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(60,10); ctx.lineTo(60,h-40); ctx.lineTo(w-20,h-40); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(60,10); ctx.lineTo(60,h-50); ctx.lineTo(w-20,h-50); ctx.stroke();
 
-    // y ticks
+    // y ticks and grid
     ctx.fillStyle='#444'; ctx.font='12px Arial';
     for(let i=0;i<=4;i++){
-      const y = 10 + (h-50) * (i/4);
+      const y = 10 + (h-60) * (i/4);
       const val = Math.round(maxVal * (1 - i/4));
       ctx.fillText(val.toLocaleString('en-IN'), 8, y+4);
       ctx.strokeStyle='#f1f5f9'; ctx.beginPath(); ctx.moveTo(60,y); ctx.lineTo(w-20,y); ctx.stroke();
@@ -160,28 +221,34 @@
     const startX = 80;
     values.forEach((v,i)=>{
       const x = startX + i*(barWidth+60);
-      const barHeight = (h-70) * (v / maxVal);
-      const y = (h-40) - barHeight;
+      const barHeight = (h-80) * (v / maxVal);
+      const y = (h-50) - barHeight;
       ctx.fillStyle = (i===0? '#d9534f' : '#2a934a');
       ctx.fillRect(x, y, barWidth, barHeight);
       // value label above bar
       ctx.fillStyle='#000'; ctx.font='13px Arial';
-      ctx.fillText(fmtNumber2(v), x + barWidth/2 - ctx.measureText(fmtNumber2(v)).width/2, y-6);
+      const txt = fmtNumber2(v);
+      ctx.fillText(txt, x + barWidth/2 - ctx.measureText(txt).width/2, y-8);
       // x label
       ctx.fillStyle='#000'; ctx.font='12px Arial';
-      ctx.fillText(labels[i], x + barWidth/2 - ctx.measureText(labels[i]).width/2, h-18);
+      ctx.fillText(labels[i], x + barWidth/2 - ctx.measureText(labels[i]).width/2, h-30);
     });
   }
 
+  // -------------------------
+  // Main calculation function
+  // -------------------------
   function calculate(){
     try{
-      document.getElementById('debug').textContent = '';
+      var debugEl = document.getElementById('debug');
+      if(debugEl) debugEl.textContent = '';
+
       const P = toNum(document.getElementById('loan').value);
       const R = toNum(document.getElementById('rate').value);
       const N = Math.max(1, Math.round(toNum(document.getElementById('months').value)));
       const D = toNum(document.getElementById('depositAmt').value);
 
-      if(P <= 0){ document.getElementById('debug').textContent = 'Loan must be > 0'; return; }
+      if(P <= 0){ if(debugEl) debugEl.textContent = 'Loan must be > 0'; return; }
 
       const emi = calcEmi(P,R,N);
       const schNo = generateSchedule(P,R,N,0);
@@ -196,40 +263,63 @@
       const reducedTenure = schWith.length;
       const firstIntNo = schNo[0] ? schNo[0].interest : 0;
       const firstIntWith = schWith[0] ? schWith[0].interest : 0;
-      const effNo = (firstIntNo * 12 / P) * 100;
-      const effWith = (firstIntWith * 12 / P) * 100;
 
-      // display summary (rounded)
-      document.getElementById('output').innerHTML =
-        'EMI: <b>' + fmtCurrency(fmtNumber2(emi)) + '</b><br>' +
-        'Interest (No deposit): <b>' + fmtCurrency(fmtNumber2(interestNo)) + '</b><br>' +
-        'Interest (With deposit): <b>' + fmtCurrency(fmtNumber2(interestWith)) + '</b><br>' +
-        '<b>Interest saved: ' + fmtCurrency(fmtNumber2(saved)) + '</b><br>' +
-        'Loan closes in <b>' + reducedTenure + ' months</b> after deposit<br>' +
-        'Effective ROI (No deposit): <b>' + fmtNumber2(effNo) + '%</b><br>' +
-        'Effective ROI (With deposit): <b>' + fmtNumber2(effWith) + '%</b>';
+      // RATE-style effective annual rates (Excel RATE logic)
+      // PMT used = (Loan + totalInterestPaid) / nper
+      const pmtNo = (P + interestNo) / N;
+      const monthlyNo = solveRateByBisection(N, pmtNo, P);
+      const effNo = isNaN(monthlyNo) ? NaN : (monthlyNo * 12 * 100);
 
-      // render table & chart
-      renderDownloadTable(schNo, schWith);
-      document.getElementById('interestSavedBox').style.display = 'block';
-      document.getElementById('interestSavedBox').textContent = 'Interest saved: ' + fmtCurrency(fmtNumber2(saved));
-      drawBarChart(interestNo, interestWith);
+      const pmtWith = (P + interestWith) / N;
+      const monthlyWith = solveRateByBisection(N, pmtWith, P);
+      const effWith = isNaN(monthlyWith) ? NaN : (monthlyWith * 12 * 100);
+
+      // Display rounded to 2 decimals
+      var outEl = document.getElementById('output');
+      if(outEl){
+        outEl.innerHTML =
+          'EMI: <b>' + fmtCurrency(fmtNumber2(emi)) + '</b><br>' +
+          'Interest (No deposit): <b>' + fmtCurrency(fmtNumber2(interestNo)) + '</b><br>' +
+          'Interest (With deposit): <b>' + fmtCurrency(fmtNumber2(interestWith)) + '</b><br>' +
+          '<b>Interest saved: ' + fmtCurrency(fmtNumber2(saved)) + '</b><br>' +
+          'Loan closes in <b>' + reducedTenure + ' months</b> after deposit<br>' +
+          'Effective ROI (No deposit): <b>' + (isNaN(effNo)? '—' : fmtNumber2(effNo) + '%') + '</b><br>' +
+          'Effective ROI (With deposit): <b>' + (isNaN(effWith)? '—' : fmtNumber2(effWith) + '%') + '</b>';
+      }
+
+      // render the preview table
+      try{ renderDownloadTable(schNo, schWith); } catch(e){ if(debugEl) debugEl.textContent = 'Table render error'; console.warn(e); }
+
+      // show interest saved box safely
+      var box = document.getElementById('interestSavedBox');
+      if(box){
+        box.style.display = 'block';
+        box.textContent = 'Interest saved: ' + fmtCurrency(fmtNumber2(saved));
+      }
+
+      // draw chart
+      try{ drawBarChart(interestNo, interestWith); } catch(e){ if(debugEl) debugEl.textContent = 'Chart draw error'; console.warn(e); }
 
     }catch(err){
       console.error(err);
-      document.getElementById('debug').textContent = 'Calculation error: ' + err.message;
+      var debugEl2 = document.getElementById('debug');
+      if(debugEl2) debugEl2.textContent = 'Calculation error: ' + err.message;
     }
   }
 
+  // -------------------------
+  // Download CSV (single header row)
+  // -------------------------
   function downloadCSV(){
     try{
-      if(!window.schedule_no || !window.schedule_with){ document.getElementById('debug').textContent = 'Run Calculate first'; return; }
+      var debugEl = document.getElementById('debug');
+      if(!window.schedule_no || !window.schedule_with){ if(debugEl) debugEl.textContent = 'Run Calculate first'; return; }
       const noS = window.schedule_no;
       const wiS = window.schedule_with;
       const maxLen = Math.max(noS.length, wiS.length);
       const rows = [];
 
-      // single header row (not merged)
+      // single header row
       rows.push(['Month','Loan','Interest','EMI','Principal','Deposit','Outstanding','Loan','Interest','EMI','Principal','Deposit','Outstanding'].join(','));
 
       for(let i=0;i<maxLen;i++){
@@ -255,16 +345,30 @@
 
       const blob = new Blob([rows.join('\n')], {type: 'text/csv'});
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'amortisation_comparison.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      const a = document.createElement('a'); a.href = url; a.download = 'amortisation_comparison.csv';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     }catch(err){
-      document.getElementById('debug').textContent = 'Download failed: ' + err.message;
+      var dbg = document.getElementById('debug');
+      if(dbg) dbg.textContent = 'Download failed: ' + err.message;
+      console.error(err);
     }
   }
 
-  document.getElementById('calcBtn').addEventListener('click', calculate);
-  document.getElementById('downloadBtn').addEventListener('click', downloadCSV);
-  // initial run
-  calculate();
+  // -------------------------
+  // Event wiring & initial run
+  // -------------------------
+  const calcBtn = document.getElementById('calcBtn');
+  if(calcBtn) calcBtn.addEventListener('click', calculate);
+  const downloadBtn = document.getElementById('downloadBtn');
+  if(downloadBtn) downloadBtn.addEventListener('click', downloadCSV);
+
+  // run initial calculation after a tick (elements ready)
+  setTimeout(calculate, 50);
+
+  // Expose for debugging (optional)
+  window._calc = calculate;
+  window._downloadCSV = downloadCSV;
+  window.solveRateByBisection = solveRateByBisection;
 })();
 </script>
 </body>
