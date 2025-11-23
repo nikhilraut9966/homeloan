@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Contact Us - Ridtech Solution</title>
+  <meta name="description" content="Contact Ridtech Solution for inquiries related to Home Loan Saver." />
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:20px;background:#f4f6f9}
+    .wrap{max-width:800px;margin:0 auto;background:#fff;padding:25px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.08)}
+    h1{margin-top:0;text-align:center;color:#003366}
+    label{display:block;font-weight:600;margin-top:12px}
+    input,textarea{width:100%;padding:10px;margin-top:6px;font-size:15px;border:1px solid #ccc;border-radius:6px}
+    button{margin-top:18px;padding:12px 20px;width:100%;font-size:16px;background:#003366;color:white;border:0;border-radius:8px;cursor:pointer}
+    button:hover{background:#002244}
+    .note{margin-top:12px;font-size:13px;color:#555}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Contact Ridtech Solution</h1>
+    <p class="note">Email: <strong>sales@ridtechsolution.com</strong></p>
+
+    <!--
+      FormSubmit form:
+      - Replace sales@ridtechsolution.com in action if you change email
+      - _next: redirect after successful submit (relative or absolute URL)
+      - _subject: subject of the email you will receive
+      - _captcha: disable FormSubmit's captcha when set to false; default allows bot protection
+    -->
+    <form action="https://formsubmit.co/sales@ridtechsolution.com" method="POST">
+      <!-- Required fields to map and prevent spam -->
+      <input type="hidden" name="_subject" value="New contact from HomeLoanSaver.in">
+      <!-- Redirect to a thank-you page (change to your site/page). Use absolute HTTPS when on web. -->
+      <input type="hidden" name="_next" value="https://homeloansaver.in/contact.html?sent=true">
+      <!-- turn off FormSubmit captcha if you want (recommended to keep default) -->
+      <input type="hidden" name="_captcha" value="true">
+
+      <label for="name">Name</label>
+      <input id="name" name="name" type="text" required />
+
+      <label for="city">City</label>
+      <input id="city" name="city" type="text" required />
+
+      <label for="contact">Contact Number</label>
+      <input id="contact" name="contact" type="text" required />
+
+      <label for="email">Email ID</label>
+      <input id="email" name="email" type="email" required />
+
+      <label for="details">Details</label>
+      <textarea id="details" name="details" rows="6" required></textarea>
+
+      <button type="submit">Send Message</button>
+    </form>
+
+    <p class="note">
+      After you upload this page, perform a test submission. The first test will trigger a verification email to
+      <strong>sales@ridtechsolution.com</strong> from FormSubmit — the recipient must click the verification link to start receiving messages.
+    </p>
+
+    <p class="note">If you want a nicer thank-you page, create a file `thank-you.html` and set `_next` to its URL.</p>
+  </div>
+</body>
+</html>
