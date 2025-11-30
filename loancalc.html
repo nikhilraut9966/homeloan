@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Loan Calculator — v4 (FOIR + EMI + ROI simplified)</title>
+  <style>
+    :root{--bg:#f6f8fb;--card:#fff;--muted:#6b7280;--text:#0f172a;--accent:#2563eb;--radius:10px;--shadow:0 6px 18px rgba(15,23,42,0.06)}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,Arial;background:var(--bg);color:var(--text)}
+    .app{max-width:1200px;margin:18px auto;padding:14px}
+    .card{background:var(--card);border-radius:var(--radius);padding:12px;margin-bottom:12px;box-shadow:var(--shadow)}
+    .small{font-size:12px;color:var(--muted)}
+    input,select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ef;font-size:13px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:6px;border-bottom:1px solid #eef2ff;text-align:center}
+    th{background:#fbfdff;color:var(--muted);font-weight:600}
+    .applicants-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .stat{font-weight:700}
+    .typeToggle button{padding:4px 8px;border-radius:999px;border:1px solid #d1d5db;background:#fff;cursor:pointer}
+    .typeToggle button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .businessPanel{border:1px dashed #dbeafe;padding:8px;border-radius:8px;background:#f0f9ff;margin-top:8px}
+    .hidden{display:none}
+    .emi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px}
+    .emi-cell{display:flex;gap:6px;align-items:center}
+    .emi-cell input{flex:1}
+    .mini{font-size:12px;color:var(--muted)}
+    .btn{background:var(--accent);color:#fff;padding:8px 10px;border-radius:8px;border:none;cursor:pointer}
+    .muted-btn{background:#fff;border:1px solid #d1d5db;color:#111;padding:6px 8px;border-radius:6px;cursor:pointer}
+    .cibil-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+    .cibil-card{min-width:200px;flex:1}
+    @media (max-width:980px){ .applicants-grid{grid-template-columns:1fr} .emi-row{grid-template-columns:repeat(2,1fr)} .emi-cell{flex-direction:column;align-items:stretch} .cibil-row{flex-direction:column} }
+    .summary-table th,.summary-table td{border:1px solid #ddd;padding:6px;text-align:left}
+    .downloads { margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; }
+    .small-table th, .small-table td { border:1px solid #eee; padding:6px; font-size:13px; text-align:center; }
+    .section-title{font-weight:700;margin-top:8px;margin-bottom:6px}
+    .collapse-toggle { cursor: pointer; color: var(--accent); font-weight:700 }
+  
+/* PRINT ONLY SUMMARY (inserted by assistant) */
+@media print {
+  /* hide everything first */
+  body * {
+    visibility: hidden !important;
+  }
+  /* show only the summaryTarget and its descendants */
+  #summaryTarget, #summaryTarget * {
+    visibility: visible !important;
+  }
+  /* position the summary at top-left and use full width */
+  #summaryTarget {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    padding: 20px !important;
+    margin: 0 !important;
+  }
+  /* hide controls/buttons in the print */
+  .downloads, #exportPdfBtn, .no-print {
+    display: none !important;
+  }
+}
+</style>
+
+  <!-- Optional offline PDF library (place locally in libs/html2pdf.bundle.min.js) -->
+  <script src="libs/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div>
+        <div style="font-size:18px;font-weight:700">Home Loan Calculator — v4</div>
+        <div class="small">FOIR → Existing EMI → Repayment capacity → Tenure (manual)</div>
+      </div>
+      <div style="text-align:right">
+        <div class="small">Date</div>
+        <div id="todayDate" class="stat"></div>
+        <div style="margin-top:8px"><input id="refNo" placeholder="Reference no (optional)"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:700">Applicants (4)</div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <label class="small" style="display:flex;gap:6px;align-items:center"><input id="autoCollapse" type="checkbox"> Auto-collapse empty applicants</label>
+          <button id="expandAllBtn" class="muted-btn">Expand all</button>
+          <button id="collapseAllBtn" class="muted-btn">Collapse all empty</button>
+        </div>
+      </div>
+      <div class="small" style="margin-top:6px">Applicant cards can also be toggled by clicking the title.</div>
+      <div id="applicantsContainer" class="applicants-grid" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700">FOIR & AGES</div>
+      <div class="mini">You enter manual FOIR for any deviation)</div>
+      <div class="row" style="margin-top:8px;gap:18px">
+        <div style="min-width:220px">
+          <div class="mini">Salaried — total monthly net</div>
+          <div class="stat" id="salTotalNet">0</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <div class="mini">Salaried FOIR %</div>
+            <div class="stat" id="salFoirPct">-</div>
+            <button id="manualSalFoirBtn" class="muted-btn">Manual</button>
+            <button id="clearManualSalFoirBtn" class="muted-btn">Clear</button>
+          </div>
+          <div class="mini" style="margin-top:6px">Salaried FOIR amount (monthly)</div>
+          <div class="stat" id="salFoirAmount">0</div>
+        </div>
+
+        <div style="min-width:260px">
+          <div class="mini">Business — monthly sum</div>
+          <div class="stat" id="bizMonthlySum">0</div>
+          <div class="mini" style="margin-top:6px">Business annual sum (avg nets)</div>
+          <div class="stat" id="bizAnnualSum">0</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <div class="mini">Business FOIR %</div>
+            <div class="stat" id="bizFoirPct">-</div>
+            <button id="manualBizFoirBtn" class="muted-btn">Manual</button>
+            <button id="clearManualBizFoirBtn" class="muted-btn">Clear</button>
+          </div>
+          <div class="mini" style="margin-top:6px">Business FOIR amount (monthly)</div>
+          <div class="stat" id="bizFoirAmount">0</div>
+        </div>
+
+        <div style="min-width:260px">
+          <div class="mini">Combined total net (monthly)</div>
+          <div class="stat" id="totalNet">0</div>
+          <div class="mini" style="margin-top:6px">Combined FOIR amount (monthly)</div>
+          <div class="stat" id="foirAmount">0</div>
+          <div class="mini" style="margin-top:6px">Effective FOIR % on total</div>
+          <div class="stat" id="foirFactor">-</div>
+        </div>
+
+        <div style="min-width:220px">
+          <div class="mini">Applicant ages & residual age (months)</div>
+          <div id="agesList" class="small"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXISTING EMIs placed after FOIR as requested -->
+    <div class="card">
+      <div style="font-weight:700">Existing EMIs</div>
+      <div class="mini" style="margin-top:6px">Enter type e.g. HL then EMI</div>
+      <div style="margin-top:8px">
+        <div id="emiRow1" class="emi-row"></div>
+        <div style="height:8px"></div>
+        <div id="emiRow2" class="emi-row"></div>
+      </div>
+      <div class="row" style="margin-top:10px;align-items:center">
+        <div style="min-width:180px"><div class="mini">Total Existing EMI</div><div class="stat" id="totalExistingEmi">0</div></div>
+        <div style="min-width:220px"><div class="mini">Repayment Capacity (FOIR − EMI)</div><div class="stat" id="repaymentCapacity">0</div></div>
+        <div style="min-width:220px"><div class="mini">Suggested tenure (months until age 60)</div><div class="stat" id="repaymentPeriod">0</div></div>
+        <div style="min-width:220px"><label class="mini">Manual tenure (months)</label><input id="manualRepayPeriod" type="number" min="0" placeholder="enter tenure depends on residual ages"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700">CIBIL, ROI & Loan</div>
+      <div class="cibil-row" style="margin-top:8px">
+        <div class="cibil-card"><div class="mini">Final CIBIL</div><div class="stat" id="finalCibil">-</div></div>
+        <div class="cibil-card"><div class="mini">ROI base (auto)</div><div class="stat" id="roiBase">-</div></div>
+
+        <!-- Kept only Manual ROI (user fills) as requested -->
+        <div class="cibil-card"><label class="mini">Manual ROI</label><input id="manualRoi" placeholder="e.g. 8.25"/></div>
+
+        <div class="cibil-card"><div class="mini">Final ROI</div><div class="stat" id="finalRoi">-</div></div>
+        <div class="cibil-card"><div class="mini">Per-lakh EMI</div><div class="stat" id="perLakhEmi">0</div></div>
+        <div class="cibil-card"><div class="mini">Max Loan (₹)</div><div class="stat" id="maxLoan">0</div></div>
+        <div class="cibil-card"><label class="mini">Loan Applied (₹)</label><input id="loanApplied" type="number" min="0" value="0"/></div>
+        <div class="cibil-card"><div class="mini">EMI on applied loan</div><div class="stat" id="appliedEmi">0</div></div>
+        <div class="cibil-card"><div class="mini">RV %</div><div class="stat" id="rvPercent">-</div></div>
+        <div class="cibil-card"><div class="mini">RV Amount</div><div class="stat" id="rvAmount">0</div></div>
+      </div>
+
+      <div style="margin-top:8px"><label class="mini">Conditions / Notes</label><textarea id="conditions" rows="2" placeholder="Notes..."></textarea></div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700">Summary</div>
+      <div id="summaryTarget" style="margin-top:10px;font-size:13px"></div>
+
+      <div class="downloads" id="downloadsContainer" style="margin-top:12px">
+        <!-- JSON / TXT removed. Keep only PDF download. -->
+        <button onclick="window.print()" class="btn no-print">🖨️ Print Summary PDF</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // helpers
+  const $  = (s,root=document)=>root.querySelector(s);
+  const $$ = (s,root=document)=>Array.from((root||document).querySelectorAll(s));
+  const fmt = n => Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2});
+  const toNum = v => { if(v==null||v==='') return 0; const n=Number(v); return isFinite(n)? n:0; };
+
+  // date
+  (function(){ const d=new Date(); $('#todayDate').textContent = ('0'+d.getDate()).slice(-2)+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+d.getFullYear(); })();
+
+  function lastNMonthNames(n){
+    const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const out=[]; const now=new Date();
+    for(let i=1;i<=n;i++){ const d=new Date(now.getFullYear(), now.getMonth()-i,1); out.push(names[d.getMonth()]+' '+d.getFullYear()); }
+    return out;
+  }
+
+  function firstApplicantFilenameSafe(){
+    const firstName = (document.querySelector('.name')?.value || '').trim();
+    if(!firstName) return `loan_${Date.now()}`;
+    return firstName.replace(/[^A-Za-z0-9_\-]+/g,'_').slice(0,60);
+  }
+
+  // manual FOIR session values
+  let manualSalFoir = null;
+  let manualBizFoir = null;
+
+  // UI refs
+  const autoCollapseEl = $('#autoCollapse');
+  const expandAllBtn = $('#expandAllBtn');
+  const collapseAllBtn = $('#collapseAllBtn');
+
+  // manual FOIR buttons
+  const manualSalFoirBtn = document.getElementById('manualSalFoirBtn');
+  const clearManualSalFoirBtn = document.getElementById('clearManualSalFoirBtn');
+  const manualBizFoirBtn = document.getElementById('manualBizFoirBtn');
+  const clearManualBizFoirBtn = document.getElementById('clearManualBizFoirBtn');
+
+  manualSalFoirBtn.addEventListener('click', ()=>{
+    const v = prompt('Enter Salaried FOIR % (e.g. 65). Leave blank or Cancel to keep auto:','' + (manualSalFoir!==null?manualSalFoir:''));
+    if(v===null) return;
+    const num = v.trim()==='' ? null : Number(v);
+    if(num!==null && (isNaN(num) || num < 0 || num > 100)){ alert('Enter a valid percentage 0-100'); return; }
+    manualSalFoir = num; updateAll();
+  });
+  clearManualSalFoirBtn.addEventListener('click', ()=>{ manualSalFoir = null; updateAll(); });
+
+  manualBizFoirBtn.addEventListener('click', ()=>{
+    const v = prompt('Enter Business FOIR % (e.g. 80). Leave blank or Cancel to keep auto:','' + (manualBizFoir!==null?manualBizFoir:''));
+    if(v===null) return;
+    const num = v.trim()==='' ? null : Number(v);
+    if(num!==null && (isNaN(num) || num < 0 || num > 100)){ alert('Enter a valid percentage 0-100'); return; }
+    manualBizFoir = num; updateAll();
+  });
+  clearManualBizFoirBtn.addEventListener('click', ()=>{ manualBizFoir = null; updateAll(); });
+
+  // build applicants
+  const applicantTitles=['Applicant','Co-applicant 1','Co-applicnat 2','Co-applicnat 3'];
+  const applicantsContainer = $('#applicantsContainer');
+  const applicants = [];
+
+  function makeApplicantCard(title, idx){
+    const card = document.createElement('div'); card.className='card applicant-card';
+    card.innerHTML = `
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer">
+        <div><strong class="appTitle">${title}</strong><div class="small appNote">Name • DOB • M/F • CIBIL</div></div>
+        <div style="text-align:right"><div class="small">Type</div><div class="typeToggle"><button class="typeBtn active" data-type="S">S</button><button class="typeBtn" data-type="B">B</button></div></div>
+      </div>
+      <div class="card-body" style="margin-top:8px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 0.6fr 0.8fr;gap:8px">
+        <input class="name" placeholder="Full name">
+        <input class="dob" placeholder="DD-MM-YYYY or YYYY-MM-DD">
+        <input class="gender" placeholder="M/F" maxlength="1">
+        <input class="cibil" placeholder="CIBIL (300-900)">
+      </div>
+
+      <div class="salarySection" style="margin-top:10px">
+        <div class="small">Last 3 months (Gross - Salary Deduction - Tax = Net)</div>
+        <table class="salaryTable"><thead><tr><th>Month</th><th>Gross</th><th>Sal Deduction</th><th>Tax</th><th>Net</th></tr></thead><tbody></tbody>
+          <tfoot><tr><td>Average</td><td colspan="3"></td><td class="avgNet">0</td></tr></tfoot></table>
+      </div>
+
+      <div class="businessPanel hidden" style="margin-top:10px">
+        <div class="small">Business: FY25 & FY24 — Profit, Depreciation, Interest, Remuneration. Then Tax (annual).</div>
+        <table><thead><tr><th>Item</th><th>FY25</th><th>FY24</th></tr></thead><tbody>
+          <tr><td>Profit</td><td><input class="biz_profit1"></td><td><input class="biz_profit2"></td></tr>
+          <tr><td>Depreciation</td><td><input class="biz_depr1"></td><td><input class="biz_depr2"></td></tr>
+          <tr><td>Interest</td><td><input class="biz_int1"></td><td><input class="biz_int2"></td></tr>
+          <tr><td>Remuneration</td><td><input class="biz_rem1"></td><td><input class="biz_rem2"></td></tr>
+          <tr><td><strong>Total</strong></td><td class="biz_total1">0</td><td class="biz_total2">0</td></tr>
+          <tr><td>Tax (annual)</td><td><input class="biz_tax1"></td><td><input class="biz_tax2"></td></tr>
+          <tr><td><strong>Net Income (annual)</strong></td><td class="biz_net1">0</td><td class="biz_net2">0</td></tr>
+        </tbody></table>
+        <div style="display:flex;gap:12px;margin-top:8px">
+          <div><div class="mini">Avg Net (annual)</div><div class="stat biz_avgAnnual">0</div></div>
+          <div><div class="mini">Net monthly business</div><div class="stat bizMonthly">0</div></div>
+        </div>
+      </div>
+
+      <div style="margin-top:8px">
+        <div class="mini">Manual tax (monthly)for salaried.</div>
+        <div class="stat manualTax">0</div>
+      </div>
+      </div>
+    `;
+    const tbody = card.querySelector('tbody');
+    lastNMonthNames(3).forEach(m => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="small">${m}</td><td><input class="gross"></td><td><input class="deductions"></td><td><input class="tax"></td><td class="netCell">0</td>`;
+      tbody.appendChild(tr);
+    });
+
+    // header toggle
+    const header = card.querySelector('.card-header');
+    header.addEventListener('click', (ev)=>{
+      if(ev.target.closest('.typeToggle')) return;
+      const body = card.querySelector('.card-body');
+      body.classList.toggle('hidden');
+    });
+
+    // type buttons
+    const btns = card.querySelectorAll('.typeBtn');
+    btns.forEach(b => b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      btns.forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      const isBiz = b.dataset.type === 'B';
+      card.querySelector('.salarySection').classList.toggle('hidden', isBiz);
+      card.querySelector('.businessPanel').classList.toggle('hidden', !isBiz);
+      updateAll();
+    }));
+
+    // update on input
+    card.addEventListener('input', updateAll);
+    card.addEventListener('change', updateAll);
+
+    return card;
+  }
+
+  applicantTitles.forEach((t,i) => {
+    const c = makeApplicantCard(t,i);
+    applicantsContainer.appendChild(c);
+    applicants.push({card: c, idx: i});
+  });
+
+  // EMI inputs (10)
+  const emiRow1 = $('#emiRow1'), emiRow2 = $('#emiRow2');
+  const emiInputs = [];
+  for(let i=0;i<10;i++){
+    const cell = document.createElement('div'); cell.className='emi-cell';
+    const type = document.createElement('input'); type.placeholder = 'Type';
+    const amt  = document.createElement('input'); amt.type='number'; amt.min=0; amt.placeholder='EMI ₹';
+    type.style.flex='0.9'; amt.style.flex='1';
+    cell.appendChild(type); cell.appendChild(amt);
+    if(i<5) emiRow1.appendChild(cell); else emiRow2.appendChild(cell);
+    emiInputs.push({type, amt});
+    amt.addEventListener('input', updateAll);
+    type.addEventListener('input', updateAll);
+  }
+
+  // other DOM refs
+  const salTotalNetEl   = $('#salTotalNet');
+  const salFoirPctEl    = $('#salFoirPct');
+  const salFoirAmountEl = $('#salFoirAmount');
+  const bizMonthlySumEl = $('#bizMonthlySum');
+  const bizAnnualSumEl  = $('#bizAnnualSum');
+  const bizFoirPctEl    = $('#bizFoirPct');
+  const bizFoirAmountEl = $('#bizFoirAmount');
+  const totalNetEl      = $('#totalNet');
+  const foirAmountEl    = $('#foirAmount');
+  const foirFactorEl    = $('#foirFactor');
+  const agesListEl      = $('#agesList');
+
+  const totalExistingEmiEl = $('#totalExistingEmi');
+  const repaymentCapacityEl = $('#repaymentCapacity');
+  const repaymentPeriodEl   = $('#repaymentPeriod');
+  const manualRepayPeriod   = $('#manualRepayPeriod');
+
+  const finalCibilEl = $('#finalCibil');
+  const roiBaseEl    = $('#roiBase');
+  const manualRoi    = $('#manualRoi');
+  const finalRoiEl   = $('#finalRoi');
+
+  const perLakhEmiEl = $('#perLakhEmi');
+  const maxLoanEl    = $('#maxLoan');
+  const loanApplied  = $('#loanApplied');
+  const appliedEmiEl = $('#appliedEmi');
+  const rvPercentEl  = $('#rvPercent');
+  const rvAmountEl   = $('#rvAmount');
+  const conditionsEl = $('#conditions');
+
+  [manualRoi, loanApplied, manualRepayPeriod].forEach(el => el.addEventListener('input', updateAll));
+
+  // ---------- TAX helper ----------
+  function computeMonthlyTaxWithSD(firstMonthGross){
+    const annualGross = Math.max(0, firstMonthGross * 12);
+    const taxable = Math.max(0, annualGross - 75000);
+    if(taxable <= 1200000) return {monthly:0, detail:{annualGross, taxable, base:0, cess:0, surcharge:0, total:0}};
+    const slabs = [
+      {income: 400000, rate: 0},
+      {income: 800000, rate: 0.05},
+      {income: 1200000, rate: 0.10},
+      {income: 1600000, rate: 0.15},
+      {income: 2000000, rate: 0.20},
+      {income: 2400000, rate: 0.25},
+      {income: Infinity, rate: 0.30}
+    ];
+    let taxBase = 0, prev = 0;
+    for(const s of slabs){
+      const upto = s.income;
+      const amt = Math.max(0, Math.min(taxable, upto) - prev);
+      taxBase += amt * s.rate;
+      if(taxable <= upto) break;
+      prev = upto===Infinity ? prev : upto;
+    }
+    const cess = taxBase * 0.04;
+    const surcharge = taxable > 5000000 ? taxBase * 0.10 : 0;
+    const total = taxBase + cess + surcharge;
+    return {monthly: total/12, detail:{annualGross, taxable, base:taxBase, cess, surcharge, total}};
+  }
+
+  // DOB helpers
+  function parseDOB(s){
+    if(!s) return null;
+    const v = String(s).trim();
+    const m1 = /^([0-3]\d)-([0-1]\d)-(\d{4})$/.exec(v);
+    if(m1){ const d=new Date(+m1[3], +m1[2]-1, +m1[1]); return isNaN(d)? null : d; }
+    const m2 = /^(\d{4})-([0-1]\d)-([0-3]\d)$/.exec(v);
+    if(m2){ const d=new Date(+m2[1], +m2[2]-1, +m2[3]); return isNaN(d)? null : d; }
+    const d = new Date(v); return isNaN(d)? null : d;
+  }
+  function ageYearsMonths(dobStr){
+    const b = parseDOB(dobStr); if(!b) return null;
+    const now = new Date();
+    let y = now.getFullYear() - b.getFullYear();
+    let m = now.getMonth() - b.getMonth();
+    let dd = now.getDate() - b.getDate();
+    if(dd < 0){
+      const prevMonthDays = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+      dd += prevMonthDays; m -= 1;
+    }
+    if(m < 0){ m += 12; y -= 1; }
+    return {y, m};
+  }
+  function residualMonthsFor(appType, ageObj){
+    if(!ageObj) return 0;
+    const limit = (appType === 'B') ? 65 : 60;
+    const currMonths = ageObj.y * 12 + ageObj.m;
+    return Math.max(0, Math.floor(limit * 12 - currMonths));
+  }
+
+  // Collapse helpers
+  function isCardBlank(card){
+    const name = (card.querySelector('.name')?.value || '').trim();
+    if(name) return false;
+    const salaryRows = Array.from(card.querySelectorAll('.salaryTable tbody tr'));
+    const anySalary = salaryRows.some(tr => {
+      return (toNum(tr.querySelector('.gross').value) + toNum(tr.querySelector('.deductions').value) + toNum(tr.querySelector('.tax').value) + toNum(tr.querySelector('.netCell').textContent)) > 0;
+    });
+    if(anySalary) return false;
+    const bizFields = ['biz_profit1','biz_depr1','biz_int1','biz_rem1','biz_tax1','biz_profit2','biz_depr2','biz_int2','biz_rem2','biz_tax2'];
+    const anyBiz = bizFields.some(cl => (toNum(card.querySelector('.'+cl).value) > 0));
+    if(anyBiz) return false;
+    return true;
+  }
+  function applyAutoCollapse(){
+    const doAuto = autoCollapseEl.checked;
+    applicants.forEach(a => {
+      const card = a.card;
+      const body = card.querySelector('.card-body');
+      if(doAuto && isCardBlank(card)){
+        body.classList.add('hidden');
+        card.classList.add('collapsed-empty');
+      } else {
+        card.classList.remove('collapsed-empty');
+        if(!doAuto){
+          body.classList.remove('hidden');
+        }
+      }
+    });
+  }
+
+  expandAllBtn.addEventListener('click', ()=>{
+    applicants.forEach(a=> a.card.querySelector('.card-body').classList.remove('hidden'));
+  });
+  collapseAllBtn.addEventListener('click', ()=>{
+    applicants.forEach(a=> {
+      if(isCardBlank(a.card)) a.card.querySelector('.card-body').classList.add('hidden');
+    });
+  });
+  autoCollapseEl.addEventListener('change', ()=>{
+    applyAutoCollapse();
+  });
+
+  // MAIN CALC
+  function updateAll(){
+    let salTotalNet = 0;
+    let bizMonthlySum = 0;
+    let bizAnnualSum = 0;
+    const salariedArr = [];
+    const bizArr = [];
+    const ages = [];
+
+    applicants.forEach((ap, idx) => {
+      const card = ap.card;
+      const typeBtn = card.querySelector('.typeBtn.active');
+      const isBiz = typeBtn && typeBtn.dataset.type === 'B';
+      const name = (card.querySelector('.name').value || (idx===0?'Applicant':('Co-applicant '+idx))).trim();
+
+      // age
+      const dobVal = card.querySelector('.dob').value;
+      const age = ageYearsMonths(dobVal);
+      ages.push({name, age, type: (isBiz ? 'B' : 'S')});
+
+      if(!isBiz){
+        const trs = Array.from(card.querySelectorAll('.salaryTable tbody tr'));
+        let netSum = 0; const rows=[];
+        trs.forEach(tr=> {
+          const gross = toNum(tr.querySelector('.gross').value);
+          const ded   = toNum(tr.querySelector('.deductions').value);
+          let tax = toNum(tr.querySelector('.tax').value);
+          const net   = Math.max(0, gross - ded - tax);
+          tr.querySelector('.netCell').textContent = fmt(net);
+          netSum += net;
+          rows.push({gross,deduct:ded,tax,net});
+        });
+        const avg = trs.length ? Math.round((netSum / trs.length)*100)/100 : 0;
+        card.querySelector('.avgNet').textContent = fmt(avg);
+        salTotalNet += avg;
+        salariedArr.push({name, rows, avg});
+        const firstGross = toNum(rows[0]?.gross);
+        const mTaxObj = computeMonthlyTaxWithSD(firstGross);
+        card.querySelector('.manualTax').textContent = fmt(mTaxObj.monthly);
+      } else {
+        const get = cls => toNum(card.querySelector('.'+cls).value);
+        const p1 = get('biz_profit1'), d1=get('biz_depr1'), i1=get('biz_int1'), r1=get('biz_rem1'), tx1=get('biz_tax1');
+        const p2 = get('biz_profit2'), d2=get('biz_depr2'), i2=get('biz_int2'), r2=get('biz_rem2'), tx2=get('biz_tax2');
+
+        const total1 = p1+d1+i1+r1;
+        const total2 = p2+d2+i2+r2;
+        card.querySelector('.biz_total1').textContent = fmt(total1);
+        card.querySelector('.biz_total2').textContent = fmt(total2);
+
+        const net1 = total1 - tx1;
+        const net2 = total2 - tx2;
+        card.querySelector('.biz_net1').textContent = fmt(net1);
+        card.querySelector('.biz_net2').textContent = fmt(net2);
+
+        const year1present = ['biz_profit1','biz_depr1','biz_int1','biz_rem1','biz_tax1'].some(c=>card.querySelector('.'+c).value.trim()!=='');
+        const year2present = ['biz_profit2','biz_depr2','biz_int2','biz_rem2','biz_tax2'].some(c=>card.querySelector('.'+c).value.trim()!=='');
+        let avgAnnual = 0, cnt=0;
+        if(year1present){ avgAnnual += net1; cnt++; }
+        if(year2present){ avgAnnual += net2; cnt++; }
+        if(cnt>0) avgAnnual = avgAnnual / cnt;
+        card.querySelector('.biz_avgAnnual').textContent = fmt(avgAnnual);
+        const monthlyEquiv = Math.round((avgAnnual/12)*100)/100;
+        card.querySelector('.bizMonthly').textContent = fmt(monthlyEquiv);
+
+        bizAnnualSum += avgAnnual;
+        bizMonthlySum += monthlyEquiv;
+        bizArr.push({name, net1, net2, avgAnnual, monthlyEquiv, fields:{
+          profit1:p1,depr1:d1,int1:i1,rem1:r1,tax1:tx1,
+          profit2:p2,depr2:d2,int2:i2,rem2:r2,tax2:tx2
+        }});
+      }
+    });
+
+    const totalNet = Math.round((salTotalNet + bizMonthlySum) * 100) / 100;
+
+    // ages HTML
+    const agesHtml = ages.map(a => {
+      if(!a.age) return `${escapeHtml(a.name)}: -`;
+      const residualMonths = residualMonthsFor(a.type, a.age);
+      return `${escapeHtml(a.name)}: ${a.age.y}y ${a.age.m}m — Residual: ${residualMonths} months (${a.type==='B'?'limit 65y':'limit 60y'})`;
+    }).join('<br>');
+    agesListEl.innerHTML = agesHtml;
+
+    // FOIR auto logic
+    let autoSalFoirFactor = 0;
+    if(salTotalNet < 25000) autoSalFoirFactor = 0.40;
+    else if(salTotalNet < 50000) autoSalFoirFactor = 0.60;
+    else if(salTotalNet < 100000) autoSalFoirFactor = 0.65;
+    else if(salTotalNet < 200000) autoSalFoirFactor = 0.70;
+    else autoSalFoirFactor = 0.75;
+
+    const bizHigh = (bizAnnualSum >= 600000) || (bizMonthlySum >= 50000);
+    let autoBizFoirFactor = bizMonthlySum>0 ? (bizHigh ? 0.80 : 0.70) : 0;
+
+    const salFoirFactor = (manualSalFoir !== null) ? (manualSalFoir / 100) : autoSalFoirFactor;
+    const bizFoirFactor = (manualBizFoir !== null) ? (manualBizFoir / 100) : autoBizFoirFactor;
+
+    const salFoirAmount = Math.round((salTotalNet * salFoirFactor)*100)/100;
+    const bizFoirAmount = Math.round((bizMonthlySum * bizFoirFactor)*100)/100;
+    const foirAmount = Math.round((salFoirAmount + bizFoirAmount)*100)/100;
+    const foirEffective = totalNet > 0 ? Math.round((foirAmount / totalNet) * 10000)/100 : 0;
+
+    // update DOM top FOIR
+    salTotalNetEl.textContent = fmt(salTotalNet);
+    salFoirPctEl.textContent = salTotalNet>0 ? ((salFoirFactor*100).toFixed(2)+'%') : '-';
+    salFoirAmountEl.textContent = fmt(salFoirAmount);
+
+    bizMonthlySumEl.textContent = fmt(bizMonthlySum);
+    bizAnnualSumEl.textContent = fmt(bizAnnualSum);
+    bizFoirPctEl.textContent = bizMonthlySum>0 ? ((bizFoirFactor*100).toFixed(2)+'%') : '-';
+    bizFoirAmountEl.textContent = fmt(bizFoirAmount);
+
+    totalNetEl.textContent = fmt(totalNet);
+    foirAmountEl.textContent = fmt(foirAmount);
+    foirFactorEl.textContent = totalNet>0 ? foirEffective.toFixed(2)+'%' : '-';
+
+    // existing EMIs: total from user inputs
+    let emiTotal = 0;
+    emiInputs.forEach(e => { emiTotal += toNum(e.amt.value); });
+    totalExistingEmiEl.textContent = fmt(emiTotal);
+
+    // Repayment capacity = FOIR amount - total existing EMI (auto)
+    const repaymentCapacity = Math.max(0, foirAmount - emiTotal);
+    repaymentCapacityEl.textContent = fmt(repaymentCapacity);
+
+    // suggested months (based on highest age; months until 60)
+    let highestAgeMonths = 0;
+    applicants.forEach(a => {
+      const dobVal = a.card.querySelector('.dob').value;
+      const ag = ageYearsMonths(dobVal);
+      if(ag){ const months = ag.y*12 + ag.m; if(months > highestAgeMonths) highestAgeMonths = months; }
+    });
+    const suggestedMonths = Math.max(0, 720 - highestAgeMonths); // 60 years * 12 months = 720
+    repaymentPeriodEl.textContent = Math.floor(suggestedMonths);
+
+    // CIBIL & ROI simplified logic
+    const cibilVals = [];
+    $$('input.cibil').forEach(el => { const v=toNum(el.value); if(v>=300 && v<=900) cibilVals.push(v); });
+    let finalCibil = 0;
+    const cibilInputs = $$('input.cibil');
+    const firstVal = cibilInputs.length>0 ? toNum(cibilInputs[0].value) : 0;
+    const secondEmpty = cibilInputs.length>1 ? (cibilInputs[1].value==='') : true;
+    const thirdEmpty  = cibilInputs.length>2 ? (cibilInputs[2].value==='') : true;
+    const fourthEmpty = cibilInputs.length>3 ? (cibilInputs[3].value==='') : true;
+    if(firstVal>=300 && firstVal<=900 && secondEmpty && thirdEmpty && fourthEmpty) finalCibil = firstVal;
+    else if(cibilVals.length>0) finalCibil = Math.round(cibilVals.reduce((a,b)=>a+b,0)/cibilVals.length);
+    else finalCibil = 0;
+    finalCibilEl.textContent = finalCibil || '-';
+
+    // ROI base (auto)
+    let roiBase = 0;
+    if(finalCibil >= 825) roiBase = 7.50;
+    else if(finalCibil >= 751) roiBase = 7.70;
+    else if(finalCibil >= 701) roiBase = 7.85;
+    else if(finalCibil > 0) roiBase = 9.25;
+    else roiBase = 8.05;
+    roiBaseEl.textContent = roiBase.toFixed(2);
+
+    // Manual ROI (user) overrides auto if provided
+    const manualRoiRaw = manualRoi.value.trim();
+    const manualRoiNum = manualRoiRaw === '' ? null : Number(manualRoiRaw);
+    let finalRoi;
+    if(manualRoiNum !== null && !isNaN(manualRoiNum)) finalRoi = Math.round(manualRoiNum*100)/100;
+    else finalRoi = Math.round(roiBase*100)/100;
+    finalRoiEl.textContent = (finalRoi===-1 ? '-1' : finalRoi.toFixed(2));
+
+    // per-lakh EMI and max loan calculations: use tenure = manual if provided else suggestedMonths
+    const manualPeriod = toNum(manualRepayPeriod.value);
+    const repayPeriodFinal = manualPeriod>0 ? manualPeriod : suggestedMonths;
+    const n = Math.floor(repayPeriodFinal);
+
+    let perLakh = 0;
+    if(n>0 && finalRoi !== -1){
+      const r = (finalRoi/12)/100;
+      const P = 100000;
+      if(r>0){ const pow = Math.pow(1+r,n); perLakh = P * r * pow / (pow - 1); } else { perLakh = P / n; }
+    }
+    perLakhEmiEl.textContent = perLakh ? fmt(perLakh) : 0;
+
+    // Max loan based on (FOIR - existing EMI) capacity
+    let maxLoan = 0;
+    if(perLakh>0){
+      const emiTotal2 = emiInputs.reduce((s,e)=>s+toNum(e.amt.value),0);
+      maxLoan = Math.floor((Math.max(0, (foirAmount - emiTotal2)) / perLakh) * 100000);
+    }
+    maxLoanEl.textContent = fmt(maxLoan);
+
+    const loanAppliedVal = toNum(loanApplied.value);
+    let emiApplied = 0;
+    if(n>0 && loanAppliedVal>0 && finalRoi !== -1){
+      const r = (finalRoi/12)/100;
+      if(r>0){ const pow = Math.pow(1+r,n); emiApplied = loanAppliedVal * r * pow / (pow - 1); } else { emiApplied = loanAppliedVal / n; }
+    }
+    appliedEmiEl.textContent = emiApplied ? fmt(emiApplied) : 0;
+
+    let rvPct = 0;
+    if(loanAppliedVal>0){
+      if(loanAppliedVal <= 3000000) rvPct = 90;
+      else if(loanAppliedVal < 7500000) rvPct = 80;
+      else rvPct = 75;
+    }
+    rvPercentEl.textContent = rvPct ? rvPct+'%' : '-';
+    rvAmountEl.textContent = fmt(loanAppliedVal * (rvPct/100));
+
+    // prepare filtered arrays for summary
+    const filteredSalaried = salariedArr.filter(s => {
+      const hasName = (s.name || '').trim() !== '';
+      const hasAnyRow = (s.rows || []).some(r => (toNum(r.gross) + toNum(r.deduct) + toNum(r.tax) + toNum(r.net)) > 0);
+      return hasName && hasAnyRow;
+    });
+    const filteredBiz = bizArr.filter(b => {
+      const hasName = (b.name || '').trim() !== '';
+      const f = b.fields || {};
+      const anyYear1 = (toNum(f.profit1)+toNum(f.depr1)+toNum(f.int1)+toNum(f.rem1)+toNum(f.tax1)) > 0;
+      const anyYear2 = (toNum(f.profit2)+toNum(f.depr2)+toNum(f.int2)+toNum(f.rem2)+toNum(f.tax2)) > 0;
+      return hasName && (anyYear1 || anyYear2 || (toNum(b.avgAnnual)>0));
+    });
+
+    applyAutoCollapse();
+
+    buildSummarySections(filteredSalaried, filteredBiz, {
+      totalNet: fmt(totalNet),
+      foirAmount: fmt(foirAmount),
+      foirPct: foirFactorEl.textContent,
+      totalExistingEmi: fmt(emiTotal),
+      repaymentCapacity: fmt(repaymentCapacity),
+      repaymentPeriod: repaymentPeriodEl.textContent,
+      manualRepayPeriod: manualRepayPeriod.value || '-',
+      finalRepayPeriod: n,
+      finalCibil: finalCibilEl.textContent,
+      roiBase: roiBaseEl.textContent,
+      manualRoi: manualRoi.value || '-',
+      finalRoi: finalRoiEl.textContent,
+      maxLoan: fmt(maxLoan),
+      loanApplied: fmt(loanAppliedVal),
+      loanEmi: fmt(emiApplied),
+      rvPercent: rvPercentEl.textContent,
+      conditions: conditionsEl.value || '-'
+    });
+  } // updateAll
+
+  function buildSummarySections(salariedArr, bizArr, metrics){
+    const host = $('#summaryTarget');
+    host.innerHTML = '';
+
+    const salTitle = document.createElement('div'); salTitle.className='section-title'; salTitle.textContent = 'Salaried Applicants';
+    host.appendChild(salTitle);
+
+    if(salariedArr.length){
+      salariedArr.forEach((s, sIndex) => {
+        const wrapper = document.createElement('div'); wrapper.style.marginTop='8px';
+        const name = document.createElement('div'); name.style.fontWeight='700'; name.textContent = s.name;
+        wrapper.appendChild(name);
+        const t = document.createElement('table'); t.className='small-table'; t.style.width='100%';
+        t.innerHTML = `<thead><tr><th>Month</th><th>Gross</th><th>Salary Deduction</th><th>Tax</th><th>Net</th></tr></thead><tbody>` +
+          s.rows.map((r, idx)=>`<tr><td>Month ${idx+1}</td><td>₹ ${fmt(r.gross)}</td><td>₹ ${fmt(r.deduct)}</td><td>₹ ${fmt(r.tax)}</td><td>₹ ${fmt(r.net)}</td></tr>`).join('') +
+          `</tbody><tfoot><tr><td style="font-weight:700">Average Net</td><td colspan="3"></td><td style="font-weight:700">₹ ${fmt(s.avg)}</td></tr></tfoot>`;
+        wrapper.appendChild(t);
+        host.appendChild(wrapper);
+      });
+
+      const totBox = document.createElement('div'); totBox.style.marginTop='10px';
+      const totalNetMonthly = salariedArr.reduce((s,a)=>s + toNum(a.avg),0);
+      const salFoirFactor = $('#salFoirPct').textContent && $('#salFoirPct').textContent !== '-' ? Number($('#salFoirPct').textContent.replace('%',''))/100 : 0;
+      const salFoirAmount = Math.round(totalNetMonthly * salFoirFactor * 100)/100;
+      totBox.innerHTML = `<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:6px">
+        <div><div class="mini">Total Salaried Monthly Net</div><div class="stat">₹ ${fmt(totalNetMonthly)}</div></div>
+        <div><div class="mini">Salaried FOIR %</div><div class="stat">${salFoirFactor? (salFoirFactor*100).toFixed(2)+'%':'-'}</div></div>
+        <div><div class="mini">Salaried FOIR Amount</div><div class="stat">₹ ${fmt(salFoirAmount)}</div></div>
+      </div>`;
+      host.appendChild(totBox);
+    } else {
+      const noSal = document.createElement('div'); noSal.style.marginTop='6px'; noSal.className='small'; noSal.textContent = 'No salaried applicants to show';
+      host.appendChild(noSal);
+    }
+
+    const bizTitle = document.createElement('div'); bizTitle.className='section-title'; bizTitle.textContent = 'Business Applicants';
+    host.appendChild(bizTitle);
+
+    if(bizArr.length){
+      bizArr.forEach(b => {
+        const wrapper = document.createElement('div'); wrapper.style.marginTop='8px';
+        const name = document.createElement('div'); name.style.fontWeight='700'; name.textContent = b.name;
+        wrapper.appendChild(name);
+        const t = document.createElement('table'); t.className='small-table'; t.style.width='100%';
+        const f = b.fields || {};
+        t.innerHTML = `<thead><tr><th>FY</th><th>Profit</th><th>Depreciation</th><th>Interest</th><th>Remuneration</th><th>Total</th><th>Tax</th><th>Net</th></tr></thead><tbody>
+          <tr><td>FY25</td><td>₹ ${fmt(f.profit1||0)}</td><td>₹ ${fmt(f.depr1||0)}</td><td>₹ ${fmt(f.int1||0)}</td><td>₹ ${fmt(f.rem1||0)}</td><td>₹ ${fmt((toNum(f.profit1)+toNum(f.depr1)+toNum(f.int1)+toNum(f.rem1))||0)}</td><td>₹ ${fmt(f.tax1||0)}</td><td>₹ ${fmt(b.net1||0)}</td></tr>
+          <tr><td>FY24</td><td>₹ ${fmt(f.profit2||0)}</td><td>₹ ${fmt(f.depr2||0)}</td><td>₹ ${fmt(f.int2||0)}</td><td>₹ ${fmt(f.rem2||0)}</td><td>₹ ${fmt((toNum(f.profit2)+toNum(f.depr2)+toNum(f.int2)+toNum(f.rem2))||0)}</td><td>₹ ${fmt(f.tax2||0)}</td><td>₹ ${fmt(b.net2||0)}</td></tr>
+        </tbody><tfoot>
+          <tr><td style="font-weight:700">Avg Annual Net</td><td colspan="5"></td><td style="font-weight:700">Monthly Equivalent</td><td style="font-weight:700">₹ ${fmt(b.monthlyEquiv)}</td></tr>
+        </tfoot>`;
+        wrapper.appendChild(t);
+        host.appendChild(wrapper);
+      });
+
+      const totalBizMonthly = bizArr.reduce((s,b)=>s + toNum(b.monthlyEquiv),0);
+      const bizFoirFactorText = $('#bizFoirPct').textContent;
+      const bizFoirFactor = bizFoirFactorText && bizFoirFactorText !== '-' ? Number(bizFoirFactorText.replace('%',''))/100 : 0;
+      const bizFoirAmount = Math.round(totalBizMonthly * bizFoirFactor * 100)/100;
+      const bizTotBox = document.createElement('div'); bizTotBox.style.marginTop='10px';
+      bizTotBox.innerHTML = `<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:6px">
+        <div><div class="mini">Business Monthly Sum</div><div class="stat">₹ ${fmt(totalBizMonthly)}</div></div>
+        <div><div class="mini">Business FOIR %</div><div class="stat">${bizFoirFactor? (bizFoirFactor*100).toFixed(2)+'%':'-'}</div></div>
+        <div><div class="mini">Business FOIR Amount</div><div class="stat">₹ ${fmt(bizFoirAmount)}</div></div>
+      </div>`;
+      host.appendChild(bizTotBox);
+    } else {
+      const noBiz = document.createElement('div'); noBiz.style.marginTop='6px'; noBiz.className='small'; noBiz.textContent = 'No business applicants to show';
+      host.appendChild(noBiz);
+    }
+
+    // Combined metrics
+    const metricsTable = document.createElement('table'); metricsTable.className='summary-table'; metricsTable.style.marginTop='12px';
+    metricsTable.innerHTML = `<tbody>
+      <tr><td style="text-align:left">Combined Total Net (monthly)</td><td style="text-align:right">₹ ${metrics.totalNet}</td></tr>
+      <tr><td style="text-align:left">Combined FOIR %</td><td style="text-align:right">${metrics.foirPct}</td></tr>
+      <tr><td style="text-align:left">Combined FOIR Amount (monthly)</td><td style="text-align:right">₹ ${metrics.foirAmount}</td></tr>
+      <tr><td style="text-align:left">Total Existing EMI</td><td style="text-align:right">₹ ${metrics.totalExistingEmi}</td></tr>
+      <tr><td style="text-align:left">Repayment Capacity</td><td style="text-align:right">₹ ${metrics.repaymentCapacity}</td></tr>
+      <tr><td style="text-align:left">Manual Tenure (months)</td><td style="text-align:right">${metrics.manualRepayPeriod}</td></tr>
+      <tr><td style="text-align:left">Final CIBIL</td><td style="text-align:right">${metrics.finalCibil}</td></tr>
+      <tr><td style="text-align:left">ROI (auto)</td><td style="text-align:right">${metrics.roiBase} %</td></tr>
+      <tr><td style="text-align:left">Manual ROI (input)</td><td style="text-align:right">${metrics.manualRoi}</td></tr>
+      <tr><td style="text-align:left">Final ROI</td><td style="text-align:right">${metrics.finalRoi} %</td></tr>
+      <tr><td style="text-align:left">Max Loan</td><td style="text-align:right">₹ ${metrics.maxLoan}</td></tr>
+      <tr><td style="text-align:left">Loan Applied</td><td style="text-align:right">₹ ${metrics.loanApplied}</td></tr>
+      <tr><td style="text-align:left">EMI on Loan Applied</td><td style="text-align:right">₹ ${metrics.loanEmi}</td></tr>
+      <tr><td style="text-align:left">RV %</td><td style="text-align:right">${metrics.rvPercent}</td></tr>
+    </tbody>`;
+    host.appendChild(metricsTable);
+
+    const cond = document.createElement('div'); cond.style.marginTop='8px';
+    cond.innerHTML = `<div style="font-weight:700">Conditions</div><div style="border:1px solid #eef2ff;padding:8px;border-radius:6px">${escapeHtml(metrics.conditions)}</div>`;
+    host.appendChild(cond);
+  } // buildSummarySections end
+
+  function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+  // PDF export
+  $('#exportPdfBtn').addEventListener('click', ()=>{
+    const node = $('#summaryTarget');
+    if(!node){ alert('Nothing to export'); return; }
+    if(typeof html2pdf === 'undefined'){
+      alert('html2pdf not found locally. To enable PDF export, download html2pdf.bundle.min.js into the same folder as this HTML (or use Print).');
+      return;
+    }
+    const wrapper = document.createElement('div');
+    wrapper.style.padding='12px'; wrapper.style.fontFamily='Arial, sans-serif';
+    wrapper.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+      <div><h2 style="margin:0">Home Loan Summary</h2><div style="font-size:12px;color:#6b7280">Ref: ${escapeHtml($('#refNo').value||'N/A')} | Date: ${$('#todayDate').textContent}</div></div>
+      <div style="text-align:right"><div style="font-weight:700;color:#2563eb">Generated offline</div></div></div><hr/>`;
+    wrapper.appendChild(node.cloneNode(true));
+    document.body.appendChild(wrapper);
+    const nameSafe = firstApplicantFilenameSafe();
+    const opt = { margin:12, filename:`${nameSafe}_loan_summary.pdf`, image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2}, jsPDF:{unit:'pt',format:'a4'} };
+    html2pdf().set(opt).from(wrapper).save().finally(()=> document.body.removeChild(wrapper));
+  });
+
+  // initial update
+  updateAll();
+  window.updateLoanCalc = updateAll;
+
+})();
+</script>
+</body>
+</html>
