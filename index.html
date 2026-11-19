@@ -1,416 +1,196 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FinancialService",
-  "name": "Home Loan Saver Calculator",
-  "url": "https://homeloansaver.in",
-  "description": "Advanced Home Loan Max Saver Calculator by Ridtech Solution.",
-  "provider": {
-    "@type": "Organization",
-    "name": "Ridtech Solution"
-  }
-}
-</script>
-
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-RHFRES2C79"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-RHFRES2C79');
-</script>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>HOME LOAN MAX SAVING CALCULATOR — Table + Bar Chart</title>
-  <style>
-    body{font-family:Arial;padding:18px;background:#f4f6f9}
-    .card{background:white;padding:18px;border-radius:10px;max-width:980px;margin:18px auto;box-shadow:0 6px 24px rgba(10,20,40,0.06)}
-    label{display:block;margin-top:10px;font-weight:600;color:#123}
-    input,select,button{width:100%;padding:10px;margin-top:6px;font-size:14px;border-radius:6px;border:1px solid #dde6f4}
-    .actions{display:flex;gap:10px;margin-top:12px}
-    #output{margin-top:14px;padding:10px;background:#fbfdff;border-radius:8px;border:1px solid #e6f0ff}
-    #debug{margin-top:10px;color:#c33;font-size:13px;min-height:18px}
-    .small{font-size:13px;color:#555}
-    table{width:100%;border-collapse:collapse;margin-top:12px}
-    th,td{border:1px solid #ddd;padding:6px;text-align:right;font-size:13px}
-    th{background:#f7fafc;color:#111;font-weight:700;text-align:center}
-    canvas{display:block;width:100%;height:260px;margin-top:12px;border-radius:6px;background:white}
-    .summary{margin-top:12px;font-weight:700}
-    .controls { display: grid; grid-template-columns: 1fr 1fr; gap:12px; }
-    @media (max-width:700px){ .controls{ grid-template-columns: 1fr } .actions{flex-direction:column} }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bank of Baroda | Home Loan vs Dropline OD Comparison</title>
+<style>
+:root{--navy:#102b4e;--blue:#1769aa;--gold:#f4b400;--bg:#f4f7fb;--ink:#1c2733;--muted:#667085;--line:#dce3ec;--green:#087443}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:14px/1.45 Arial,Helvetica,sans-serif;color:var(--ink)}
+header{background:var(--navy);color:white;padding:22px max(18px,calc((100% - 1200px)/2))}
+header h1{font-size:22px;margin:0 0 5px}header p{margin:0;color:#dbe7f5}
+main{max-width:1200px;margin:22px auto;padding:0 16px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px #102b4e0a}
+h2{font-size:17px;margin:0 0 14px;color:var(--navy)}
+.inputs{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:14px}
+label{display:block;font-weight:600;font-size:12px;color:#475467;margin-bottom:5px}
+input{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;font-size:14px}
+input:focus{outline:2px solid #b7d8f5;border-color:var(--blue)}
+.hint{font-size:11px;color:var(--muted);margin-top:4px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+button{border:0;border-radius:7px;padding:10px 16px;font-weight:700;cursor:pointer;background:var(--blue);color:white}
+button.secondary{background:#e8eef5;color:var(--navy)}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.card{border:1px solid var(--line);border-radius:10px;padding:16px}
+.card h3{margin:0 0 12px;font-size:16px;color:var(--navy)}
+.kpi{font-size:25px;font-weight:700;color:var(--navy);margin:3px 0}
+.sub{color:var(--muted);font-size:12px}
+.metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.metric{background:#f7f9fc;padding:10px;border-radius:8px}
+.metric b{display:block;font-size:16px;margin-top:3px}
+.winner{color:var(--green);font-weight:700}
+.tablewrap{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:900px;font-size:12px}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{background:#edf3f9;color:var(--navy);position:sticky;top:0;z-index:1}
+th:first-child,td:first-child{text-align:center}
+.note{font-size:12px;color:#596579;background:#fff8e6;border-left:3px solid var(--gold);padding:10px 12px;border-radius:5px}
+.group-od{background:#dcecf9;color:#104b78;text-align:center!important;font-size:13px}
+.group-normal{background:#e5efe9;color:#175b3d;text-align:center!important;font-size:13px}
+@media(max-width:720px){.inputs{grid-template-columns:1fr 1fr}.cards{grid-template-columns:1fr}}
+@media(max-width:460px){.inputs{grid-template-columns:1fr}header h1{font-size:18px}}
+</style>
 </head>
-     <body>
-  <div class="card">
-    <h2>HOME LOAN MAX SAVING CALCULATOR</h2>
-
-    <div class="controls">
-      <div>
-        <label>Loan amount (₹)</label>
-        <input id="loan" type="number" value="100000" />
-      </div>
-      <div>
-        <label>Interest rate (% p.a.)</label>
-        <input id="rate" type="number" step="0.01" value="7.7" />
-      </div>
-    </div>
-
-    <div class="controls">
-      <div>
-        <label>Tenure (months)</label>
-        <input id="months" type="number" value="12" />
-      </div>
-      <div>
-        <label>Lump deposit at Day 1 (₹)</label>
-        <input id="depositAmt" type="number" value="10000" />
-      </div>
-    </div>
-
-    <div class="actions">
-      <button id="calcBtn">Calculate</button>
-      <button id="downloadBtn" style="background:#2a934a;color:#fff">Download CSV (with & without deposit)</button>
-    </div>
-
-    <div id="output" class="small">Results will appear here after you click <b>Calculate</b>.</div>
-    <div id="debug" aria-live="polite"></div>
-
-    <div id="downloadDataContainer">
-      <div style="margin-top:14px;font-weight:700">Downloaded data preview (exact CSV rows):</div>
-      <div id="downloadTableWrap"></div>
-    </div>
-
-    <div class="summary" id="interestSavedBox" style="display:none"></div>
-    <canvas id="barCanvas" aria-label="Interest comparison bar chart"></canvas>
+<body>
+<header>
+  <h1>Bank of Baroda – Home Loan Comparison</h1>
+  <p>Regular Home Loan vs Dropline Overdraft (OD) | Offline calculator</p>
+</header>
+<main>
+<section class="panel">
+  <h2>Loan details</h2>
+  <div class="inputs">
+    <div><label for="customer">Customer name (optional)</label><input id="customer" value="" placeholder="Enter customer name"></div>
+    <div><label for="amount">Loan amount (₹)</label><input id="amount" type="number" min="1" step="1000" value="10000000"></div>
+    <div><label for="tenure">Tenure (months)</label><input id="tenure" type="number" min="1" max="600" step="1" value="360"></div>
+    <div><label for="normalRate">Regular Home Loan ROI (% p.a.)</label><input id="normalRate" type="number" min="0" max="30" step="0.01" value="7.65"></div>
+    <div><label for="odExtra">Additional OD ROI (% points)</label><input id="odExtra" type="number" min="0" max="10" step="0.01" value="0.25"></div>
+    <div><label for="deposit">Average deposit maintained in OD from Day 1 (₹)</label><input id="deposit" type="number" min="0" step="1000" value="0"><div class="hint">Assumed constant throughout the tenure; used to reduce the OD interest-bearing balance.</div></div>
   </div>
+  <div class="actions">
+    <button id="calculate">Calculate comparison</button>
+    <button class="secondary" id="csv">Download monthly schedule (CSV)</button>
+    <button class="secondary" id="reset">Reset example</button>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Overall comparison</h2>
+  <div class="cards">
+    <div class="card">
+      <h3>Dropline OD <span id="odRateLabel"></span></h3>
+      <div class="sub">First-month principal + interest</div><div class="kpi" id="odFirst">—</div>
+      <div class="metrics">
+        <div class="metric"><span class="sub">Total interest</span><b id="odInterest">—</b></div>
+        <div class="metric"><span class="sub">Total principal + interest</span><b id="odTotal">—</b></div>
+        <div class="metric"><span class="sub">Last-month outflow</span><b id="odLast">—</b></div>
+        <div class="metric"><span class="sub">Monthly principal reduction</span><b id="odPrincipal">—</b></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Regular Home Loan <span id="normalRateLabel"></span></h3>
+      <div class="sub">Fixed monthly EMI</div><div class="kpi" id="normalEmi">—</div>
+      <div class="metrics">
+        <div class="metric"><span class="sub">Total interest</span><b id="normalInterest">—</b></div>
+        <div class="metric"><span class="sub">Total repayment</span><b id="normalTotal">—</b></div>
+        <div class="metric"><span class="sub">First-month interest</span><b id="normalFirstInt">—</b></div>
+        <div class="metric"><span class="sub">Last-month EMI</span><b id="normalLast">—</b></div>
+      </div>
+    </div>
+  </div>
+  <p id="difference" style="margin:14px 0 0;font-weight:700"></p>
+</section>
+
+<section class="panel">
+  <h2>Month-wise repayment schedule</h2>
+  <div class="tablewrap">
+    <table id="schedule">
+      <thead>
+        <tr>
+          <th colspan="5" class="group-od">Dropline OD</th>
+          <th colspan="5" class="group-normal">Normal Home Loan</th>
+        </tr>
+        <tr>
+          <th>No.</th><th>Loan amount</th><th>Principal</th><th>Interest</th><th>Monthly Payment</th>
+          <th>No.</th><th>Loan Amount</th><th>Principal</th><th>Interest</th><th>EMI</th>
+        </tr>
+      </thead><tbody></tbody>
+    </table>
+  </div>
+</section>
+<section class="panel">
+  <h2>Calculation assumptions</h2>
+  <div class="note">
+    <ul>
+      <li>Dropline OD principal/limit reduces in equal monthly instalments: original loan amount ÷ total months.</li>
+      <li>The average OD deposit is assumed to be available from Day 1 and maintained throughout the tenure. It is deducted from the original loan amount to arrive at the adjusted Dropline OD balance; principal is then divided equally over the selected tenure.</li>
+      <li>OD interest is approximated monthly on the opening adjusted OD loan amount × OD ROI ÷ 12. Actual bank OD interest is generally based on daily outstanding balances and the bank's sanctioned drawing-power schedule.</li>
+      <li>Regular loan uses a standard reducing-balance EMI at the regular ROI.</li>
+      <li>Taxes, insurance, processing fees, rate resets, payment dates and other charges are excluded. This is an illustrative comparison, not an official Bank of Baroda quotation or confirmation of product terms.</li>
+    </ul>
+  </div>
+</section>
+</main>
+
+<footer style="max-width:1200px;margin:20px auto;padding:18px 16px;text-align:center;background:#fff;border-top:1px solid #dce3ec;color:#475467">
+  <nav aria-label="Main pages" style="display:flex;justify-content:center;flex-wrap:wrap;gap:16px">
+    <a href="roi.html">ROI Calculation</a>
+    <a href="loancalc.html">Loan Calculation</a>
+    <a href="privacy-policy.html">Privacy Policy</a>
+    <a href="terms.html">Terms &amp; Conditions</a>
+    <a href="disclaimer.html">Disclaimer</a>
+    <a href="about.html">About Us</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+  <p style="font-size:12px;margin:12px 0 0">Home Loan Saver | Independent calculator for illustrative comparison</p>
+</footer>
 
 <script>
-(function(){
-  // -------------------------
-  // Helpers
-  // -------------------------
-  function toNum(v){ v = Number(v); return isNaN(v)?0:v; }
-  function fmtCurrency(v){ return '₹'+Number(v||0).toLocaleString('en-IN',{minimumFractionDigits:2, maximumFractionDigits:2}); }
-  function fmtNumber2(v){ return Number(v).toFixed(2); }
-
-  // -------------------------
-  // EMI calculation
-  // -------------------------
-  function calcEmi(P, annualRate, n){
-    let r = annualRate/12/100;
-    if(r===0) return P/n;
-    return P * r * Math.pow(1+r,n) / (Math.pow(1+r,n)-1);
+const $ = id => document.getElementById(id);
+const fmt = n => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(n);
+const num = id => Number($(id).value);
+let latestRows = [];
+function calculate(){
+  const P=num('amount'), n=Math.floor(num('tenure')), r=num('normalRate')/100, extra=num('odExtra')/100, dep=num('deposit');
+  if(!(P>0&&n>0&&r>=0&&extra>=0&&dep>=0) || dep>=P){alert('Please enter valid values. The OD deposit must be less than the loan amount.');return;}
+  const odR=r+extra, odStart=P-dep, odMonthlyPrincipal=odStart/n, normalMonthlyRate=r/12;
+  const emi = normalMonthlyRate===0 ? P/n : P*normalMonthlyRate/(1-Math.pow(1+normalMonthlyRate,-n));
+  let odBal=odStart, normalBal=P, odIntTotal=0, normalIntTotal=0, odFirst=0, odLast=0, normalFirstInt=0, normalLast=0;
+  latestRows=[];
+  const tbody=$('schedule').querySelector('tbody'); tbody.innerHTML='';
+  for(let m=1;m<=n;m++){
+    const odOpen=odBal, normOpen=normalBal;
+    const odPrin=Math.min(odMonthlyPrincipal,odBal);
+    const odInt=odOpen*odR/12;
+    const odPay=odPrin+odInt;
+    odBal=Math.max(0,odBal-odPrin);
+    const normInt=normOpen*normalMonthlyRate;
+    let normPrin=Math.min(normOpen,Math.max(0,emi-normInt));
+    let normPay=normPrin+normInt;
+    normalBal=Math.max(0,normOpen-normPrin);
+    if(m===n && normalBal>0.005){normPrin=normOpen;normPay=normPrin+normInt;normalBal=0;}
+    odIntTotal+=odInt; normalIntTotal+=normInt;
+    if(m===1){odFirst=odPay;normalFirstInt=normInt;}
+    if(m===n){odLast=odPay;normalLast=normPay;}
+    const row=[m,odOpen,odPrin,odInt,odPay,m,normOpen,normPrin,normInt,normPay];
+    latestRows.push(row);
+    const tr=document.createElement('tr');
+    row.forEach((v,i)=>{const td=document.createElement('td');td.textContent=i===0||i===5?v.toString():fmt(v);tr.appendChild(td);});
+    tbody.appendChild(tr);
   }
-
-  // -------------------------
-  // Build amortization schedule (deposit applied at start of month 1)
-  // -------------------------
-  function generateSchedule(P,R,N,deposit){
-    const emi = calcEmi(P,R,N);
-    let outstanding = Math.max(0, P - (deposit||0));
-    const monthlyRate = R/12/100;
-    const schedule = [];
-    for(let m=1; m<=N && outstanding>0.0000001; m++){
-      const initial = outstanding;
-      const interest = initial * monthlyRate;
-      let principalPaid = emi - interest;
-      if(principalPaid > outstanding) principalPaid = outstanding;
-      outstanding = Math.max(0, outstanding - principalPaid);
-      schedule.push({
-        month: m,
-        initial: Number(initial),
-        interest: Number(interest),
-        emi: Number(emi),
-        principalPaid: Number(principalPaid),
-        deposit: (m===1? Number(deposit||0) : 0),
-        outstanding: Number(outstanding)
-      });
-    }
-    return schedule;
-  }
-
-  // -------------------------
-  // Excel RATE-style solver (bisection) - monthly rate r such that PV = PMT * (1-(1+r)^-n)/r
-  // -------------------------
-  function solveRateByBisection(nper, pmt, pv){
-    // If pmt*nper == pv then r -> 0
-    if(Math.abs(pmt * nper - pv) < 1e-9) return 0;
-    function f(r){
-      if(Math.abs(r) < 1e-12){
-        return pmt * nper - pv;
-      } else {
-        return pmt * (1 - Math.pow(1 + r, -nper)) / r - pv;
-      }
-    }
-    var low = -0.999999, high = 1.0;
-    var fLow = f(low), fHigh = f(high);
-    if(isNaN(fLow) || isNaN(fHigh)) return NaN;
-    if(fLow * fHigh > 0){
-      var expansions = 0;
-      while(fLow * fHigh > 0 && expansions < 80){
-        high *= 2;
-        fHigh = f(high);
-        expansions++;
-      }
-      if(fLow * fHigh > 0) return NaN;
-    }
-    for(var i=0;i<300;i++){
-      var mid = (low + high) / 2;
-      var fMid = f(mid);
-      if(Math.abs(fMid) < 1e-12) return mid;
-      if(fLow * fMid <= 0){
-        high = mid; fHigh = fMid;
-      } else {
-        low = mid; fLow = fMid;
-      }
-    }
-    return (low + high) / 2;
-  }
-
-  // -------------------------
-  // Render download table (HTML preview)
-  // -------------------------
-  function renderDownloadTable(noS, wiS){
-    var wrap = document.getElementById('downloadTableWrap');
-    if(!wrap) return;
-    const maxLen = Math.max(noS.length, wiS.length);
-    let html = '<table><thead>';
-    html += '<tr><th colspan="7" style="text-align:center">No Deposit</th><th colspan="6" style="text-align:center">With Deposit</th></tr>';
-    html += '<tr>';
-    const headers = ['Month','Loan','Interest','EMI','Principal','Deposit','Outstanding','Loan','Interest','EMI','Principal','Deposit','Outstanding'];
-    headers.forEach(h=> html += '<th>'+h+'</th>');
-    html += '</tr></thead><tbody>';
-    for(let i=0;i<maxLen;i++){
-      const a = noS[i] || {initial:'', interest:'', emi:'', principalPaid:'', deposit:'', outstanding:''};
-      const b = wiS[i] || {initial:'', interest:'', emi:'', principalPaid:'', deposit:'', outstanding:''};
-      html += '<tr>';
-      html += '<td style="text-align:center">'+(i+1)+'</td>';
-      html += '<td>'+ (a.initial!==''? fmtNumber2(a.initial): '') +'</td>';
-      html += '<td>'+ (a.interest!==''? fmtNumber2(a.interest): '') +'</td>';
-      html += '<td>'+ (a.emi!==''? fmtNumber2(a.emi): '') +'</td>';
-      html += '<td>'+ (a.principalPaid!==''? fmtNumber2(a.principalPaid): '') +'</td>';
-      html += '<td>'+ (a.deposit!==''? fmtNumber2(a.deposit): '') +'</td>';
-      html += '<td>'+ (a.outstanding!==''? fmtNumber2(a.outstanding): '') +'</td>';
-
-      html += '<td>'+ (b.initial!==''? fmtNumber2(b.initial): '') +'</td>';
-      html += '<td>'+ (b.interest!==''? fmtNumber2(b.interest): '') +'</td>';
-      html += '<td>'+ (b.emi!==''? fmtNumber2(b.emi): '') +'</td>';
-      html += '<td>'+ (b.principalPaid!==''? fmtNumber2(b.principalPaid): '') +'</td>';
-      html += '<td>'+ (b.deposit!==''? fmtNumber2(b.deposit): '') +'</td>';
-      html += '<td>'+ (b.outstanding!==''? fmtNumber2(b.outstanding): '') +'</td>';
-      html += '</tr>';
-    }
-    html += '</tbody></table>';
-    wrap.innerHTML = html;
-  }
-
-  // -------------------------
-  // Draw bar chart (internal canvas)
-  // -------------------------
-  function drawBarChart(interestNo, interestWith){
-    var canvas = document.getElementById('barCanvas');
-    if(!canvas) return;
-    var ctx = canvas.getContext('2d');
-    var w = canvas.clientWidth || 900;
-    var h = canvas.clientHeight || 260;
-    canvas.width = Math.floor(w * (window.devicePixelRatio || 1));
-    canvas.height = Math.floor(h * (window.devicePixelRatio || 1));
-    ctx.setTransform(window.devicePixelRatio || 1,0,0,window.devicePixelRatio || 1,0,0);
-    ctx.clearRect(0,0,w,h);
-
-    const values = [ interestNo, interestWith ];
-    const labels = ['No Deposit','With Deposit'];
-    const maxVal = Math.max(...values,1);
-    const barWidth = Math.min(140, (w-120)/3);
-
-    // axes
-    ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(60,10); ctx.lineTo(60,h-50); ctx.lineTo(w-20,h-50); ctx.stroke();
-
-    // y ticks and grid
-    ctx.fillStyle='#444'; ctx.font='12px Arial';
-    for(let i=0;i<=4;i++){
-      const y = 10 + (h-60) * (i/4);
-      const val = Math.round(maxVal * (1 - i/4));
-      ctx.fillText(val.toLocaleString('en-IN'), 8, y+4);
-      ctx.strokeStyle='#f1f5f9'; ctx.beginPath(); ctx.moveTo(60,y); ctx.lineTo(w-20,y); ctx.stroke();
-    }
-
-    // bars
-    const startX = 80;
-    values.forEach((v,i)=>{
-      const x = startX + i*(barWidth+60);
-      const barHeight = (h-80) * (v / maxVal);
-      const y = (h-50) - barHeight;
-      ctx.fillStyle = (i===0? '#d9534f' : '#2a934a');
-      ctx.fillRect(x, y, barWidth, barHeight);
-      // value label above bar
-      ctx.fillStyle='#000'; ctx.font='13px Arial';
-      const txt = fmtNumber2(v);
-      ctx.fillText(txt, x + barWidth/2 - ctx.measureText(txt).width/2, y-8);
-      // x label
-      ctx.fillStyle='#000'; ctx.font='12px Arial';
-      ctx.fillText(labels[i], x + barWidth/2 - ctx.measureText(labels[i]).width/2, h-30);
-    });
-  }
-
-  // -------------------------
-  // Main calculation function
-  // -------------------------
-  function calculate(){
-    try{
-      var debugEl = document.getElementById('debug');
-      if(debugEl) debugEl.textContent = '';
-
-      const P = toNum(document.getElementById('loan').value);
-      const R = toNum(document.getElementById('rate').value);
-      const N = Math.max(1, Math.round(toNum(document.getElementById('months').value)));
-      const D = toNum(document.getElementById('depositAmt').value);
-
-      if(P <= 0){ if(debugEl) debugEl.textContent = 'Loan must be > 0'; return; }
-
-      const emi = calcEmi(P,R,N);
-      const schNo = generateSchedule(P,R,N,0);
-      const schWith = generateSchedule(P,R,N,D);
-
-      window.schedule_no = schNo;
-      window.schedule_with = schWith;
-
-      const interestNo = schNo.reduce((s,x)=>s + x.interest, 0);
-      const interestWith = schWith.reduce((s,x)=>s + x.interest, 0);
-      const saved = interestNo - interestWith;
-      const reducedTenure = schWith.length;
-      const firstIntNo = schNo[0] ? schNo[0].interest : 0;
-      const firstIntWith = schWith[0] ? schWith[0].interest : 0;
-
-      // RATE-style effective annual rates (Excel RATE logic)
-      // PMT used = (Loan + totalInterestPaid) / nper
-      const pmtNo = (P + interestNo) / N;
-      const monthlyNo = solveRateByBisection(N, pmtNo, P);
-      const effNo = isNaN(monthlyNo) ? NaN : (monthlyNo * 12 * 100);
-
-      const pmtWith = (P + interestWith) / N;
-      const monthlyWith = solveRateByBisection(N, pmtWith, P);
-      const effWith = isNaN(monthlyWith) ? NaN : (monthlyWith * 12 * 100);
-
-      // Display rounded to 2 decimals
-      var outEl = document.getElementById('output');
-      if(outEl){
-        outEl.innerHTML =
-          'EMI: <b>' + fmtCurrency(fmtNumber2(emi)) + '</b><br>' +
-          'Interest (No deposit): <b>' + fmtCurrency(fmtNumber2(interestNo)) + '</b><br>' +
-          'Interest (With deposit): <b>' + fmtCurrency(fmtNumber2(interestWith)) + '</b><br>' +
-          '<b>Interest saved: ' + fmtCurrency(fmtNumber2(saved)) + '</b><br>' +
-          'Loan closes in <b>' + reducedTenure + ' months</b> after deposit<br>' +
-          'Effective ROI (No deposit): <b>' + (isNaN(effNo)? '—' : fmtNumber2(effNo) + '%') + '</b><br>' +
-          'Effective ROI (With deposit): <b>' + (isNaN(effWith)? '—' : fmtNumber2(effWith) + '%') + '</b>';
-      }
-
-      // render the preview table
-      try{ renderDownloadTable(schNo, schWith); } catch(e){ if(debugEl) debugEl.textContent = 'Table render error'; console.warn(e); }
-
-      // show interest saved box safely
-      var box = document.getElementById('interestSavedBox');
-      if(box){
-        box.style.display = 'block';
-        box.textContent = 'Interest saved: ' + fmtCurrency(fmtNumber2(saved));
-      }
-
-      // draw chart
-      try{ drawBarChart(interestNo, interestWith); } catch(e){ if(debugEl) debugEl.textContent = 'Chart draw error'; console.warn(e); }
-
-    }catch(err){
-      console.error(err);
-      var debugEl2 = document.getElementById('debug');
-      if(debugEl2) debugEl2.textContent = 'Calculation error: ' + err.message;
-    }
-  }
-
-  // -------------------------
-  // Download CSV (single header row)
-  // -------------------------
-  function downloadCSV(){
-    try{
-      var debugEl = document.getElementById('debug');
-      if(!window.schedule_no || !window.schedule_with){ if(debugEl) debugEl.textContent = 'Run Calculate first'; return; }
-      const noS = window.schedule_no;
-      const wiS = window.schedule_with;
-      const maxLen = Math.max(noS.length, wiS.length);
-      const rows = [];
-
-      // single header row
-      rows.push(['Month','Loan','Interest','EMI','Principal','Deposit','Outstanding','Loan','Interest','EMI','Principal','Deposit','Outstanding'].join(','));
-
-      for(let i=0;i<maxLen;i++){
-        const a = noS[i] || {initial:'', interest:'', emi:'', principalPaid:'', deposit:'', outstanding:''};
-        const b = wiS[i] || {initial:'', interest:'', emi:'', principalPaid:'', deposit:'', outstanding:''};
-        const row = [
-          i+1,
-          a.initial!=='' ? fmtNumber2(a.initial) : '',
-          a.interest!=='' ? fmtNumber2(a.interest) : '',
-          a.emi!=='' ? fmtNumber2(a.emi) : '',
-          a.principalPaid!=='' ? fmtNumber2(a.principalPaid) : '',
-          a.deposit!=='' ? fmtNumber2(a.deposit) : '',
-          a.outstanding!=='' ? fmtNumber2(a.outstanding) : '',
-          b.initial!=='' ? fmtNumber2(b.initial) : '',
-          b.interest!=='' ? fmtNumber2(b.interest) : '',
-          b.emi!=='' ? fmtNumber2(b.emi) : '',
-          b.principalPaid!=='' ? fmtNumber2(b.principalPaid) : '',
-          b.deposit!=='' ? fmtNumber2(b.deposit) : '',
-          b.outstanding!=='' ? fmtNumber2(b.outstanding) : ''
-        ];
-        rows.push(row.join(','));
-      }
-
-      const blob = new Blob([rows.join('\n')], {type: 'text/csv'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'amortisation_comparison.csv';
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    }catch(err){
-      var dbg = document.getElementById('debug');
-      if(dbg) dbg.textContent = 'Download failed: ' + err.message;
-      console.error(err);
-    }
-  }
-
-  // -------------------------
-  // Event wiring & initial run
-  // -------------------------
-  const calcBtn = document.getElementById('calcBtn');
-  if(calcBtn) calcBtn.addEventListener('click', calculate);
-  const downloadBtn = document.getElementById('downloadBtn');
-  if(downloadBtn) downloadBtn.addEventListener('click', downloadCSV);
-
-  // run initial calculation after a tick (elements ready)
-  setTimeout(calculate, 50);
-
-  // Expose for debugging (optional)
-  window._calc = calculate;
-  window._downloadCSV = downloadCSV;
-  window.solveRateByBisection = solveRateByBisection;
-})();
+  $('odRateLabel').textContent='('+ (odR*100).toFixed(2)+'%)';
+  $('normalRateLabel').textContent='('+ (r*100).toFixed(2)+'%)';
+  $('odFirst').textContent=fmt(odFirst); $('odInterest').textContent=fmt(odIntTotal);
+  $('odTotal').textContent=fmt(odStart+odIntTotal); $('odLast').textContent=fmt(odLast);
+  $('odPrincipal').textContent=fmt(odMonthlyPrincipal);
+  $('normalEmi').textContent=fmt(emi); $('normalInterest').textContent=fmt(normalIntTotal);
+  $('normalTotal').textContent=fmt(P+normalIntTotal); $('normalFirstInt').textContent=fmt(normalFirstInt);
+  $('normalLast').textContent=fmt(normalLast);
+  const diff=odIntTotal-normalIntTotal;
+  $('difference').textContent = diff>0 ? 'Dropline OD costs approximately '+fmt(diff)+' more in total interest under these assumptions.' :
+    diff<0 ? 'Dropline OD saves approximately '+fmt(-diff)+' in total interest under these assumptions.' :
+    'Both options have approximately the same total interest under these assumptions.';
+  $('difference').style.color=diff>0?'#a33a2b':'#087443';
+}
+$('calculate').addEventListener('click',calculate);
+$('reset').addEventListener('click',()=>{$('customer').value='';$('amount').value=10000000;$('tenure').value=360;$('normalRate').value=7.65;$('odExtra').value=0.25;$('deposit').value=0;calculate();});
+$('csv').addEventListener('click',()=>{
+  if(!latestRows.length) calculate();
+  const headers=['Dropline OD No.','Dropline OD Loan amount','Dropline OD Principal','Dropline OD Interest','Dropline OD Monthly Payment','Normal Home Loan No.','Normal Home Loan Loan Amount','Normal Home Loan Principal','Normal Home Loan Interest','Normal Home Loan EMI'];
+  const csv=[headers,...latestRows].map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}), url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='home_loan_vs_dropline_od_schedule.csv';a.click();URL.revokeObjectURL(url);
+});
+calculate();
 </script>
-</body>
-  <p style="font-size:15px; margin-top:20px; line-height:1.6;">
-  The Home Loan Max Saver Calculator helps you calculate EMI, interest savings, 
-  effective ROI, reduced tenure, and benefits of saving account deposit linked 
-  home loans. This tool is useful for Bank Home Loan Saver, Home Loan 
-  Max Gain, and overdraft linked home loan customers. This calculator shows how depositing money reduces outstanding principal, saves 
-  interest, and shortens loan tenure.
-</p>
-</body>
-  <nav style="padding:10px; background:#f4f4f4; text-align:center;">
-  <a href="roi.html" style="margin:0 10px;">ROI Calculation</a>
-  <a href="loancalc.html" style="margin:0 10px;">Loan Calculation</a>
-  <a href="privacy-policy.html" style="margin:0 10px;">Privacy Policy</a>
-  <a href="terms.html" style="margin:0 10px;">Terms & Conditions</a>
-  <a href="disclaimer.html" style="margin:0 10px;">Disclaimer</a>
-  <a href="about.html" style="margin:0 10px;">About Us</a>
-  <a href="contact.html" style="margin:0 10px;">Contact</a>
-</nav>
-
-</html>
+</body></html>
