@@ -113,8 +113,9 @@ th:first-child,td:first-child{text-align:center}
   <div class="note">
     <ul>
       <li>Dropline OD principal/limit reduces in equal monthly instalments: original loan amount ÷ total months.</li>
-      <li>The average OD deposit is assumed to be available from Day 1 and maintained throughout the tenure. It is deducted from the original loan amount to arrive at the adjusted Dropline OD balance; principal is then divided equally over the selected tenure.</li>
-      <li>OD interest is approximated monthly on the opening adjusted OD loan amount × OD ROI ÷ 12. Actual bank OD interest is generally based on daily outstanding balances and the bank's sanctioned drawing-power schedule.</li>
+      <li>Dropline OD monthly principal repayment is always the original sanctioned loan amount divided by the selected tenure, irrespective of whether an OD deposit is maintained.</li>
+      <li>The average OD deposit is assumed to be available from Day 1 and maintained throughout the tenure. It offsets the outstanding principal only for interest calculation; it does not reduce the scheduled monthly principal repayment.</li>
+      <li>OD interest is approximated monthly as max(0, opening OD principal − average deposit) × OD ROI ÷ 12. Actual bank OD interest is generally based on daily outstanding balances and the bank's sanctioned drawing-power schedule.</li>
       <li>Regular loan uses a standard reducing-balance EMI at the regular ROI.</li>
       <li>Taxes, insurance, processing fees, rate resets, payment dates and other charges are excluded. This is an illustrative comparison, not an official Bank of Baroda quotation or confirmation of product terms.</li>
     </ul>
@@ -142,8 +143,8 @@ const num = id => Number($(id).value);
 let latestRows = [];
 function calculate(){
   const P=num('amount'), n=Math.floor(num('tenure')), r=num('normalRate')/100, extra=num('odExtra')/100, dep=num('deposit');
-  if(!(P>0&&n>0&&r>=0&&extra>=0&&dep>=0) || dep>=P){alert('Please enter valid values. The OD deposit must be less than the loan amount.');return;}
-  const odR=r+extra, odStart=P-dep, odMonthlyPrincipal=odStart/n, normalMonthlyRate=r/12;
+  if(!(P>0&&n>0&&r>=0&&extra>=0&&dep>=0)){alert('Please enter valid non-negative values and a positive loan amount and tenure.');return;}
+  const odR=r+extra, odStart=P, odMonthlyPrincipal=P/n, normalMonthlyRate=r/12;
   const emi = normalMonthlyRate===0 ? P/n : P*normalMonthlyRate/(1-Math.pow(1+normalMonthlyRate,-n));
   let odBal=odStart, normalBal=P, odIntTotal=0, normalIntTotal=0, odFirst=0, odLast=0, normalFirstInt=0, normalLast=0;
   latestRows=[];
@@ -151,7 +152,8 @@ function calculate(){
   for(let m=1;m<=n;m++){
     const odOpen=odBal, normOpen=normalBal;
     const odPrin=Math.min(odMonthlyPrincipal,odBal);
-    const odInt=odOpen*odR/12;
+    const odInterestBalance=Math.max(0,odOpen-dep);
+    const odInt=odInterestBalance*odR/12;
     const odPay=odPrin+odInt;
     odBal=Math.max(0,odBal-odPrin);
     const normInt=normOpen*normalMonthlyRate;
@@ -171,7 +173,7 @@ function calculate(){
   $('odRateLabel').textContent='('+ (odR*100).toFixed(2)+'%)';
   $('normalRateLabel').textContent='('+ (r*100).toFixed(2)+'%)';
   $('odFirst').textContent=fmt(odFirst); $('odInterest').textContent=fmt(odIntTotal);
-  $('odTotal').textContent=fmt(odStart+odIntTotal); $('odLast').textContent=fmt(odLast);
+  $('odTotal').textContent=fmt(P+odIntTotal); $('odLast').textContent=fmt(odLast);
   $('odPrincipal').textContent=fmt(odMonthlyPrincipal);
   $('normalEmi').textContent=fmt(emi); $('normalInterest').textContent=fmt(normalIntTotal);
   $('normalTotal').textContent=fmt(P+normalIntTotal); $('normalFirstInt').textContent=fmt(normalFirstInt);
